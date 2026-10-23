@@ -1,0 +1,66 @@
+# ==============================================================================
+# Configuration Générale - Vision IA & Reconnaissance Temps Réel
+# ==============================================================================
+
+server:
+  host: "0.0.0.0"
+  port: 8443
+  ssl_enabled: true
+  cert_file: "certs/cert.pem"
+  key_file: "certs/key.pem"
+
+camera:
+  # Mode par défaut au démarrage ("pc" pour webcam OpenCV serveur, "browser" pour flux web/téléphone)
+  default_mode: "browser"
+  # Index de la caméra locale OpenCV sur le PC (0 = caméra intégrée, 1+ = webcam externe)
+  pc_camera_index: 0
+  # Résolution de capture recommandée pour concilier fluidité et précision
+  capture_width: 640
+  capture_height: 480
+  target_fps: 30
+
+yolo:
+  # Modèle standard YOLOv8 Ultralytics (yolov8n.pt, yolov8s.pt, yolov8m.pt)
+  model_name: "yolov8n.pt"
+  # Seuil de confiance pour filtrer les détections
+  confidence_threshold: 0.45
+  # Seuil IoU pour le Non-Maximum Suppression (NMS)
+  iou_threshold: 0.45
+  # Taille d'image pour l'inférence YOLO
+  img_size: 640
+  # Mode Vocabulaire Ouvert (YOLO-World)
+  open_vocabulary_enabled: false
+  open_vocabulary_model: "yolov8s-world.pt"
+  # Classes personnalisées par défaut si le mode ouvert est activé
+  custom_classes:
+    - "personne"
+    - "chat"
+    - "chien"
+    - "sac à dos"
+    - "smartphone"
+    - "clé"
+    - "bouteille"
+    - "chaussure"
+
+faces:
+  # Activer la reconnaissance faciale
+  enabled: true
+  # Seuil de tolérance distance (plus bas = plus strict, typiquement 0.50 à 0.60)
+  tolerance: 0.52
+  # Dossier local de stockage des visages et empreintes biométriques
+  storage_dir: "data/faces"
+  # Taille minimale du visage en pixels pour être analysé
+  min_face_size: 40
+
+cloud_fallback:
+  # Option de secours dans le cloud pour les cas non identifiés localement
+  enabled: false
+  # Fournisseur: "google" (Cloud Vision) ou "azure" (Azure Computer Vision)
+  provider: "google"
+  # Clé d'API ou chemin vers le fichier d'identification JSON
+  api_key_or_creds: ""
+  # Seuil en-dessous duquel interroger le cloud si aucun objet n'a été reconnu
+  trigger_confidence_threshold: 0.35
+
+storage:
+  captures_dir: "data/captures"

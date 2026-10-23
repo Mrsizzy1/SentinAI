@@ -1,0 +1,60 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+ENV/
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Secrets & Variables d'environnement
+.env
+.env.local
+.env.*.local
+*.key
+data/.enterprise_master.key
+
+# Certificats SSL générés localement
+certs/*
+!certs/.gitkeep
+
+# Données persistantes locales et captures (RGPD)
+data/faces/*
+!data/faces/.gitkeep
+data/captures/*
+!data/captures/.gitkeep
+data/captures/osint/*
+!data/captures/osint/.gitkeep
+data/*.db
+data/*.sqlite3
+data/web_cache.json
+
+
+# Modèles volumineux téléchargés automatiquement
+*.pt
+!yolov8n.pt
+
+# IDEs et OS
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db

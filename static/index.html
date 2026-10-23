@@ -1,0 +1,434 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Vision IA Temps Réel | Détection & Reconnaissance</title>
+    <!-- Polices modernes Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body>
+    <div class="app-container">
+        <!-- En-tête de l'application -->
+        <header class="app-header">
+            <div class="header-brand">
+                <div class="status-dot pulsing" id="connectionStatusDot"></div>
+                <div class="brand-text">
+                    <h1>Vision IA <span class="accent-text">Temps Réel</span></h1>
+                    <p class="subtitle" id="deviceSubtitle">Détection & Reconnaissance Faciale</p>
+                </div>
+            </div>
+            <div class="header-badges">
+                <span class="badge badge-accent" id="activeModelBadge">yolov8n.pt</span>
+                <span class="badge badge-device" id="hardwareBadge">Détection...</span>
+            </div>
+        </header>
+
+        <!-- Avertissement RGPD / Vie privée -->
+        <div class="gdpr-banner">
+            <div class="gdpr-icon">⚖️</div>
+            <div class="gdpr-content">
+                <strong>Protection des Données & Vie Privée :</strong> 
+                Toutes les détections et visages sont traités 100% localement sur votre machine. 
+                N'enregistrez et ne reconnaissez des personnes qu'avec leur <u>consentement explicite</u>.
+            </div>
+        </div>
+
+        <!-- Zone Vidéo Principale -->
+        <main class="viewport-wrapper">
+            <div class="video-card">
+                <!-- Éléments cachés pour la capture getUserMedia du navigateur -->
+                <video id="webcamVideo" playsinline autoplay muted style="position: absolute; width: 1px; height: 1px; opacity: 0; pointer-events: none;"></video>
+                <canvas id="captureCanvas" style="position: absolute; width: 1px; height: 1px; opacity: 0; pointer-events: none;"></canvas>
+
+                <!-- Affichage du flux annoté renvoyé par le serveur -->
+                <div class="stream-container">
+                    <img id="annotatedStream" alt="Flux vidéo temps réel" class="stream-img" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='640' height='480' viewBox='0 0 640 480'%3E%3Crect width='640' height='480' fill='%2312151e'/%3E%3Ctext x='50%25' y='50%25' fill='%236b7280' dominant-baseline='middle' text-anchor='middle' font-family='sans-serif' font-size='16'%3EInitialisation de la cam%C3%A9ra...%3C/text%3E%3C/svg%3E">
+                    
+                    <!-- HUD superposé (statistiques en direct) -->
+                    <div class="stream-hud">
+                        <div class="hud-item"><span class="hud-label">FPS</span><span class="hud-value" id="hudFps">0.0</span></div>
+                        <div class="hud-item"><span class="hud-label">Latence</span><span class="hud-value" id="hudLatency">0 ms</span></div>
+                        <div class="hud-item"><span class="hud-label">Objets</span><span class="hud-value" id="hudObjects">0</span></div>
+                    </div>
+
+                    <!-- Contrôles rapides superposés sur le flux -->
+                    <div class="stream-floating-actions">
+                        <button id="btnSwitchCamera" class="btn-circle" title="Basculer caméra avant/arrière" aria-label="Basculer caméra">
+                            🔄
+                        </button>
+                        <button id="btnWebSearchFace" class="btn-circle btn-info" title="Recherche visuelle Web (Google Lens) sur le visage inconnu" aria-label="Recherche Web">
+                            🌐
+                        </button>
+                        <button id="btnSnapshot" class="btn-circle btn-primary" title="Prendre une photo annotée" aria-label="Prendre une capture">
+                            📸
+                        </button>
+                        <button id="btnTogglePause" class="btn-circle" title="Pause / Reprendre" aria-label="Pause flux">
+                            ⏸️
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Résumé instantané des détections -->
+                <div class="detections-summary-bar">
+                    <div class="categories-chips" id="categoriesChips">
+                        <span class="chip chip-empty">En attente de détections...</span>
+                    </div>
+                </div>
+            </div>
+        </main>
+
+        <!-- Panneau de Contrôles & Réglages -->
+        <section class="controls-section">
+            <!-- Onglets de navigation des réglages -->
+            <div class="tabs-header">
+                <button class="tab-btn active" data-tab="tab-source">📹 Source</button>
+                <button class="tab-btn" data-tab="tab-yolo">🧠 Modèle IA</button>
+                <button class="tab-btn" data-tab="tab-world">🌍 Mode Ouvert</button>
+                <button class="tab-btn" data-tab="tab-faces">👤 Visages & Identité Web</button>
+                <button class="tab-btn" data-tab="tab-enterprise">🏢 Sûreté Entreprise</button>
+                <button class="tab-btn" data-tab="tab-gallery">🖼️ Captures</button>
+            </div>
+
+            <!-- Contenu Onglet 1: Choix de la Source Caméra -->
+            <div class="tab-pane active" id="tab-source">
+                <div class="panel-card">
+                    <h3>Sélection de la Source Caméra</h3>
+                    <div class="source-toggle-group">
+                        <label class="radio-card">
+                            <input type="radio" name="cameraSource" value="browser" checked>
+                            <div class="radio-content">
+                                <span class="radio-icon">📱</span>
+                                <div class="radio-text">
+                                    <strong>Caméra de cet appareil</strong>
+                                    <small>Navigateur Mobile ou Webcam PC directe (WebRTC/WebSocket)</small>
+                                </div>
+                            </div>
+                        </label>
+                        <label class="radio-card">
+                            <input type="radio" name="cameraSource" value="pc">
+                            <div class="radio-content">
+                                <span class="radio-icon">💻</span>
+                                <div class="radio-text">
+                                    <strong>Webcam PC (Serveur OpenCV)</strong>
+                                    <small>Flux capturé directement par le serveur Python</small>
+                                </div>
+                            </div>
+                        </label>
+                    </div>
+
+                    <div class="field-group" id="pcCameraIndexGroup" style="display: none; margin-top: 15px;">
+                        <label for="pcCamIndex">Index Caméra OpenCV PC :</label>
+                        <div class="input-inline">
+                            <input type="number" id="pcCamIndex" value="0" min="0" max="5">
+                            <button id="btnApplyCamIndex" class="btn btn-secondary">Changer Caméra PC</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Contenu Onglet 2: Modèle YOLOv8 standard -->
+            <div class="tab-pane" id="tab-yolo">
+                <div class="panel-card">
+                    <h3>Paramètres de Détection YOLOv8</h3>
+                    <div class="form-grid">
+                        <div class="field-group">
+                            <label for="selectModel">Modèle YOLOv8 :</label>
+                            <select id="selectModel" class="styled-select">
+                                <option value="yolov8n.pt" selected>yolov8n (Ultra-léger & Rapide)</option>
+                                <option value="yolov8s.pt">yolov8s (Équilibré)</option>
+                                <option value="yolov8m.pt">yolov8m (Haute Précision)</option>
+                            </select>
+                        </div>
+                        <div class="field-group">
+                            <label for="rangeConfidence">Seuil de Confiance : <span id="confVal">45%</span></label>
+                            <input type="range" id="rangeConfidence" min="0.10" max="0.90" step="0.05" value="0.45">
+                        </div>
+                        <div class="field-group">
+                            <label class="switch-label">
+                                <input type="checkbox" id="checkFacesEnabled" checked>
+                                <span>Activer la Reconnaissance Faciale en direct</span>
+                            </label>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Contenu Onglet 3: Mode "Tout Reconnaître" (YOLO-World) -->
+            <div class="tab-pane" id="tab-world">
+                <div class="panel-card">
+                    <div class="card-header-action">
+                        <div>
+                            <h3>Mode "Tout Reconnaître" (Vocabulaire Ouvert)</h3>
+                            <p class="hint">YOLO-World permet de détecter n'importe quel objet sans réentraînement.</p>
+                        </div>
+                        <label class="toggle-switch">
+                            <input type="checkbox" id="toggleOpenVocab">
+                            <span class="slider"></span>
+                        </label>
+                    </div>
+
+                    <div class="field-group" style="margin-top: 15px;">
+                        <label for="customClassesInput">Classes textuelles à détecter (séparées par des virgules) :</label>
+                        <textarea id="customClassesInput" rows="3" placeholder="Exemple : sac à dos bleu, clé, tasse, ordinateur portable, chat, smartphone"></textarea>
+                    </div>
+                    <button id="btnApplyOpenVocab" class="btn btn-accent">Mettre à jour les classes YOLO-World</button>
+                </div>
+            </div>
+
+            <!-- Contenu Onglet 4: Gestion des Visages & Identité Web -->
+            <div class="tab-pane" id="tab-faces">
+                <!-- Section 1 : Apprentissage Web Automatique -->
+                <div class="panel-card" style="border-left: 4px solid var(--accent-primary, #6366f1); margin-bottom: 20px;">
+                    <div class="card-header-action">
+                        <div>
+                            <h3>🌐 Apprentissage Web Automatique (Wikipédia)</h3>
+                            <p class="hint">Tapez le nom d'une personnalité ou célébrité : le système télécharge sa photo officielle, apprend son visage et mémorise sa biographie en 2 secondes.</p>
+                        </div>
+                    </div>
+                    <div class="form-grid" style="margin-top: 15px;">
+                        <div class="field-group">
+                            <label for="webPersonName">Nom de la personnalité :</label>
+                            <div class="input-inline">
+                                <input type="text" id="webPersonName" placeholder="Ex: Albert Einstein, Elon Musk, Marie Curie, Bill Gates...">
+                                <button id="btnLearnWebPerson" class="btn btn-accent">⚡ Apprendre du Web</button>
+                            </div>
+                        </div>
+                    </div>
+                    <!-- Aperçu biographique après apprentissage -->
+                    <div id="webBioPreview" class="web-bio-preview" style="display: none; margin-top: 15px;">
+                        <img id="webBioThumb" class="bio-thumb" src="" alt="Thumbnail">
+                        <div class="bio-content">
+                            <h4 id="webBioTitle">-</h4>
+                            <p id="webBioDesc" class="bio-desc">-</p>
+                            <p id="webBioExtract" class="bio-extract">-</p>
+                            <a id="webBioLink" href="#" target="_blank" class="bio-link">Consulter la page Wikipédia ↗</a>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Section 2 : Enregistrement Manuel / Local -->
+                <div class="panel-card">
+                    <h3>👤 Enregistrer une Personne (Local)</h3>
+                    <p class="hint">Prenez une photo en direct ou téléversez une image de face bien éclairée.</p>
+                    
+                    <div class="form-grid">
+                        <div class="field-group">
+                            <label for="facePersonName">Nom ou Prénom :</label>
+                            <input type="text" id="facePersonName" placeholder="Ex: Alice, Marc, Papa, Collègue...">
+                        </div>
+                        <div class="field-group actions-row">
+                            <button id="btnCaptureCurrentFace" class="btn btn-primary">📸 Capturer depuis le flux actuel</button>
+                            <label class="btn btn-secondary file-upload-btn">
+                                📁 Téléverser une photo
+                                <input type="file" id="faceFileInput" accept="image/*" style="display: none;">
+                            </label>
+                        </div>
+                    </div>
+
+                    <div class="registered-faces-header" style="margin-top: 25px;">
+                        <h4>Identités Mémorisées (<span id="facesCountBadge">0</span>)</h4>
+                        <button id="btnPurgeFaces" class="btn btn-danger-outline btn-sm">🗑️ Tout effacer (RGPD)</button>
+                    </div>
+
+                    <!-- Galerie des visages enregistrés -->
+                    <div class="faces-gallery" id="facesGallery">
+                        <div class="empty-state">Aucun visage mémorisé pour le moment.</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Contenu Onglet 5: Galerie de Captures -->
+            <div class="tab-pane" id="tab-gallery">
+                <div class="panel-card">
+                    <div class="card-header-action">
+                        <h3>Captures d'Écran Annotées</h3>
+                        <button id="btnRefreshCaptures" class="btn btn-secondary btn-sm">🔄 Rafraîchir</button>
+                    </div>
+                    <div class="captures-gallery" id="capturesGallery">
+                        <div class="empty-state">Aucune capture enregistrée. Cliquez sur 📸 pour sauvegarder une scène.</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Contenu Onglet 6: Sûreté Entreprise & Contrôle Comportemental -->
+            <div class="tab-pane" id="tab-enterprise">
+                <div class="panel-card" style="border-left: 4px solid #ef4444; margin-bottom: 20px;">
+                    <div class="card-header-action">
+                        <div>
+                            <h3>🏢 Contrôle Comportemental & Règles de Sécurité</h3>
+                            <p class="hint">Surveillance périmétrique, détection de chutes et gestion des flux vidéo industriels.</p>
+                        </div>
+                    </div>
+
+                    <div class="form-grid">
+                        <div class="field-group">
+                            <label class="switch-label">
+                                <input type="checkbox" id="checkRestrictedZone" checked>
+                                <span>Activer la Zone Restreinte / Périmètre Interdit</span>
+                            </label>
+                            <small class="hint">Déclenche une alerte critique si une personne non autorisée franchit la zone.</small>
+                        </div>
+                        <div class="field-group">
+                            <label class="switch-label">
+                                <input type="checkbox" id="checkFallDetection" checked>
+                                <span>Détection de Chute & Urgence Sécurité (Man-Down)</span>
+                            </label>
+                            <small class="hint">Alerte immédiate en cas de malaise ou personne allongée au sol.</small>
+                        </div>
+                        <div class="field-group">
+                            <label for="inputLoitering">Seuil d'Errance / Stationnement Prolongé (secondes) :</label>
+                            <div class="input-inline">
+                                <input type="number" id="inputLoitering" value="6" min="2" max="60">
+                                <button id="btnSaveBehaviorConfig" class="btn btn-secondary">Appliquer</button>
+                            </div>
+                        </div>
+                        <div class="field-group">
+                            <label for="inputRtspUrl">Connexion Caméra IP Industrielle (RTSP / ONVIF) :</label>
+                            <div class="input-inline">
+                                <input type="text" id="inputRtspUrl" placeholder="rtsp://admin:pass@192.168.1.50:554/stream">
+                                <button id="btnConnectRtsp" class="btn btn-primary">Connecter IP</button>
+                            </div>
+                        </div>
+                        <div class="field-group">
+                            <label class="switch-label">
+                                <input type="checkbox" id="checkLiveness" checked>
+                                <span>Anti-Spoofing : Détection de Vivant (Rejet photos & écrans)</span>
+                            </label>
+                            <small class="hint">Analyse de texture cutanée et reflets spéculaires contre les fraudes.</small>
+                        </div>
+                        <div class="field-group">
+                            <label>Contrôle d'Accès Physique (Relais Automatisé) :</label>
+                            <div class="actions-row" style="margin-top: 4px;">
+                                <button id="btnDoorUnlock" class="btn btn-secondary btn-sm">🔓 Ouvrir Porte (5s)</button>
+                                <button id="btnDoorLockdown" class="btn btn-danger-outline btn-sm">🚨 Confinement</button>
+                                <span id="doorRelayStatusBadge" class="badge-severity badge-info" style="align-self: center;">Statut : FERMÉ</span>
+                            </div>
+                        </div>
+                        <div class="field-group" style="grid-column: 1 / -1;">
+                            <label for="inputWebhookUrl">Webhook d'Alerte d'Urgence (SIEM / Microsoft Teams / Slack) :</label>
+                            <div class="input-inline">
+                                <input type="text" id="inputWebhookUrl" placeholder="https://webhook.site/... ou https://outlook.office.com/webhook/...">
+                                <button id="btnSaveWebhook" class="btn btn-accent">Enregistrer Webhook</button>
+                            </div>
+                        </div>
+                        <div class="field-group" style="grid-column: 1 / -1; border-top: 1px solid var(--border-color); padding-top: 15px; margin-top: 10px;">
+                            <label for="inputEnterpriseApiKey">🔑 Clé d'API Sécurisée (Authentification Entreprise) :</label>
+                            <div class="input-inline">
+                                <input type="password" id="inputEnterpriseApiKey" placeholder="Entrez la clé X-Enterprise-Key (ex: ENT-SECURE-...)">
+                                <button id="btnSaveApiKey" class="btn btn-primary">Sauvegarder Clé</button>
+                            </div>
+                            <small class="hint">Nécessaire en production (REQUIRE_AUTH=true) pour valider les actions de sûreté et modifications.</small>
+                        </div>
+                    </div>
+                </div>
+
+
+                <!-- Registre d'Audit & Incidents Référencés -->
+                <div class="panel-card">
+                    <div class="card-header-action">
+                        <div>
+                            <h3>📋 Registre d'Audit & Journal des Incidents</h3>
+                            <p class="hint">Traçabilité inaltérable horodatée des violations et alertes de sûreté.</p>
+                        </div>
+                        <div class="actions-row">
+                            <button id="btnRefreshAudit" class="btn btn-secondary btn-sm">🔄 Rafraîchir</button>
+                            <a id="btnExportAuditCsv" href="/api/enterprise/audit-export" class="btn btn-accent btn-sm" download="rapport_audit.csv">📥 Exporter CSV</a>
+                        </div>
+                    </div>
+
+                    <div class="audit-table-wrapper" style="margin-top: 15px; overflow-x: auto;">
+                        <table class="audit-table" id="auditTable">
+                            <thead>
+                                <tr>
+                                    <th>Horodatage</th>
+                                    <th>Gravité</th>
+                                    <th>Événement</th>
+                                    <th>Personne</th>
+                                    <th>Détails</th>
+                                    <th>Preuve</th>
+                                </tr>
+                            </thead>
+                            <tbody id="auditTableBody">
+                                <tr><td colspan="6" class="empty-state">Chargement du journal d'audit...</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Modal d'Investigation OSINT & Réseaux Sociaux -->
+        <div id="osintModal" class="osint-modal" style="display: none;">
+            <div class="osint-modal-backdrop" id="osintModalBackdrop"></div>
+            <div class="osint-modal-card">
+                <div class="osint-modal-header">
+                    <h3>🕵️ Dossier d'Investigation OSINT & Réseaux Sociaux</h3>
+                    <button id="btnCloseOsintModal" class="btn-close-modal">✖</button>
+                </div>
+                <div class="osint-modal-body">
+                    <!-- Étape 1 : Visage Cible Isolé & Moteurs de Recherche Inverse -->
+                    <div class="osint-step">
+                        <h4>1. Image Isolée depuis la Webcam & Moteurs Visuels</h4>
+                        <div class="osint-target-row">
+                            <img id="osintTargetImg" class="osint-target-preview" src="" alt="Cible Webcam">
+                            <div class="osint-engines-list">
+                                <a id="linkGoogleLens" href="https://lens.google.com/" target="_blank" class="engine-link btn btn-secondary btn-sm">
+                                    🔍 Google Lens (Photos & Blogs) ↗
+                                </a>
+                                <a id="linkYandex" href="https://yandex.com/images/search?rpt=imageview" target="_blank" class="engine-link btn btn-secondary btn-sm">
+                                    🌐 Yandex Images (Meilleur pour les visages) ↗
+                                </a>
+                                <a id="linkFaceCheck" href="https://facecheck.id/" target="_blank" class="engine-link btn btn-secondary btn-sm">
+                                    👤 FaceCheck.ID (Réseaux Sociaux) ↗
+                                </a>
+                                <a id="linkBingVisual" href="https://www.bing.com/visualsearch" target="_blank" class="engine-link btn btn-secondary btn-sm">
+                                    🔎 Bing Visual Search ↗
+                                </a>
+                            </div>
+                        </div>
+                        <p class="hint">Faites un glisser-déposer de l'image ci-contre dans l'un des moteurs ouverts pour découvrir où cette personne apparaît en ligne.</p>
+                    </div>
+
+                    <!-- Étape 2 : Profiling Réseaux Sociaux -->
+                    <div class="osint-step" style="margin-top: 15px;">
+                        <h4>2. Profiling Automatique sur les Réseaux Sociaux</h4>
+                        <div class="input-inline">
+                            <input type="text" id="inputOsintFoundName" placeholder="Entrez le nom découvert (Ex: Alexandre Dupont)">
+                            <button id="btnSearchSocialProfiles" class="btn btn-accent">🔎 Découvrir Profils Sociaux</button>
+                        </div>
+                        <div id="socialLinksContainer" class="social-links-grid" style="display: none; margin-top: 10px;"></div>
+                    </div>
+
+                    <!-- Étape 3 : Enrôlement Immédiat dans la Caméra -->
+                    <div class="osint-step" style="margin-top: 15px;">
+                        <h4>3. Enrôler cette Identité dans la Caméra</h4>
+                        <div class="form-grid">
+                            <div class="field-group">
+                                <label for="inputOsintRole">Rôle / Métier / Titre :</label>
+                                <input type="text" id="inputOsintRole" placeholder="Ex: Directeur Commercial, Développeur, Suspect...">
+                            </div>
+                            <div class="field-group">
+                                <label for="inputOsintNotes">Notes & Liens :</label>
+                                <input type="text" id="inputOsintNotes" placeholder="Ex: Profil LinkedIn vérifié, présent le mardi...">
+                            </div>
+                        </div>
+                        <button id="btnEnrollInvestigated" class="btn btn-primary" style="margin-top: 10px; width: 100%;">
+                            💾 Enregistrer et Faire Reconnaître en Direct par la Caméra
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Notification Toast -->
+        <div id="toastNotification" class="toast"></div>
+    </div>
+
+    <!-- Script principal -->
+    <script src="/static/js/app.js"></script>
+</body>
+</html>
